@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.1
+
+- Fix: `AttributeError: property 'config_entry' has no setter` beim Öffnen von "Konfigurieren" auf neueren HA-Core-Versionen (eigenes `__init__` im Options Flow entfernt, HA setzt `config_entry` inzwischen selbst)
+
 ## v1.0.0
 
 - Erste Veröffentlichung

@@ -34,14 +34,15 @@ class GroceryIconMapConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: config_entries.ConfigEntry):
-        return GroceryIconMapOptionsFlow(config_entry)
+        return GroceryIconMapOptionsFlow()
 
 
 class GroceryIconMapOptionsFlow(config_entries.OptionsFlow):
-    """Verwaltung der Label -> Icon Zuordnungen."""
+    """Verwaltung der Label -> Icon Zuordnungen.
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
+    Kein eigener __init__ mit config_entry-Zuweisung: neuere HA-Core-Versionen
+    stellen self.config_entry bereits automatisch bereit (read-only Property).
+    """
 
     def _mappings(self) -> dict[str, str]:
         return dict(self.config_entry.options.get(CONF_MAPPINGS, {}))

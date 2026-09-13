@@ -6,5 +6,5 @@
   "documentation": "https://github.com/RymenTe/grocery-icon-map",
   "integration_type": "service",
   "iot_class": "local_push",
-  "version": "1.0.0"
+  "version": "1.0.1"
 }
