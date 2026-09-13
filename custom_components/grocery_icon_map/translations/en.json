@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Grocery Icon Map",
+        "description": "Creates a central mapping of category labels to icons, read by the Grocery Icon Card."
+      }
+    },
+    "abort": {
+      "already_configured": "This integration is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Manage icon mappings",
+        "menu_options": {
+          "add_mapping": "Add mapping",
+          "remove_mapping": "Remove mapping"
+        }
+      },
+      "add_mapping": {
+        "title": "New mapping",
+        "data": {
+          "label": "Label / category",
+          "icon": "Icon"
+        }
+      },
+      "remove_mapping": {
+        "title": "Remove mapping",
+        "data": {
+          "label": "Label to remove"
+        }
+      }
+    },
+    "abort": {
+      "no_mappings": "There are no mappings yet."
+    },
+    "error": {
+      "empty_label": "Please provide a label."
+    }
+  }
+}

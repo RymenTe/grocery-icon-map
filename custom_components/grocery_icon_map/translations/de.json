@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Grocery Icon Map einrichten",
+        "description": "Legt eine zentrale Zuordnung von Kategorie-Labels zu Icons an, die von der Grocery Icon Card ausgelesen wird."
+      }
+    },
+    "abort": {
+      "already_configured": "Diese Integration ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Icon-Zuordnungen verwalten",
+        "menu_options": {
+          "add_mapping": "Zuordnung hinzufügen",
+          "remove_mapping": "Zuordnung entfernen"
+        }
+      },
+      "add_mapping": {
+        "title": "Neue Zuordnung",
+        "data": {
+          "label": "Label / Kategorie",
+          "icon": "Icon"
+        }
+      },
+      "remove_mapping": {
+        "title": "Zuordnung entfernen",
+        "data": {
+          "label": "Zu entfernendes Label"
+        }
+      }
+    },
+    "abort": {
+      "no_mappings": "Es sind noch keine Zuordnungen vorhanden."
+    },
+    "error": {
+      "empty_label": "Bitte ein Label angeben."
+    }
+  }
+}
