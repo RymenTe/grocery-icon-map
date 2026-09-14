@@ -3,7 +3,10 @@
     "step": {
       "user": {
         "title": "Grocery Icon Map einrichten",
-        "description": "Legt eine zentrale Zuordnung von Kategorie-Labels zu Icons an, die von der Grocery Icon Card ausgelesen wird."
+        "description": "Legt eine zentrale Zuordnung von Kategorie-Labels zu Icons an, die von der Grocery Icon Card ausgelesen wird.",
+        "data": {
+          "icon_style": "Icon-Stil"
+        }
       }
     },
     "abort": {
@@ -16,14 +19,16 @@
         "title": "Icon-Zuordnungen verwalten",
         "menu_options": {
           "add_mapping": "Zuordnung hinzufügen",
-          "remove_mapping": "Zuordnung entfernen"
+          "remove_mapping": "Zuordnung entfernen",
+          "change_style": "Icon-Stil ändern"
         }
       },
       "add_mapping": {
         "title": "Neue Zuordnung",
         "data": {
           "label": "Label / Kategorie",
-          "icon": "Icon"
+          "icon": "Icon (mdi:... oder Emoji)",
+          "category": "Kategorie"
         }
       },
       "remove_mapping": {
@@ -31,13 +36,21 @@
         "data": {
           "label": "Zu entfernendes Label"
         }
+      },
+      "change_style": {
+        "title": "Icon-Stil ändern",
+        "description": "Wirkt sich nur auf neue Vorschläge und das Fallback-Icon der Karte aus. Bestehende Zuordnungen bleiben unverändert.",
+        "data": {
+          "icon_style": "Icon-Stil"
+        }
       }
     },
     "abort": {
       "no_mappings": "Es sind noch keine Zuordnungen vorhanden."
     },
     "error": {
-      "empty_label": "Bitte ein Label angeben."
+      "empty_label": "Bitte ein Label angeben.",
+      "empty_icon": "Bitte ein Icon angeben."
     }
   }
 }

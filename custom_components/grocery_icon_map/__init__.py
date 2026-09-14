@@ -13,7 +13,13 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_MAPPINGS, DEFAULT_MAPPINGS, DOMAIN
+from .const import (
+    CONF_ICON_STYLE,
+    CONF_MAPPINGS,
+    DEFAULT_ICON_STYLE,
+    DEFAULT_MAPPINGS_BY_STYLE,
+    DOMAIN,
+)
 
 PLATFORMS = ["sensor"]
 
@@ -22,13 +28,15 @@ CARD_FILE = Path(__file__).parent / "www" / "grocery-icon-card.js"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    # Beim allerersten Start (noch keine Optionen gespeichert) einen
-    # sinnvollen Standardsatz an Zuordnungen vorbefüllen. Der Nutzer kann
+    # Absicherung für Entries aus älteren Versionen (vor der Stil-Auswahl)
+    # oder falls Optionen aus anderem Grund fehlen: sinnvollen Standardsatz
+    # passend zum (ggf. Default-) Icon-Stil vorbefüllen. Der Nutzer kann
     # diese über den Optionen-Dialog jederzeit bearbeiten, ergänzen oder
     # entfernen - dies ist nur der Startpunkt, keine feste Vorgabe.
     if CONF_MAPPINGS not in entry.options:
+        style = entry.data.get(CONF_ICON_STYLE, DEFAULT_ICON_STYLE)
         hass.config_entries.async_update_entry(
-            entry, options={CONF_MAPPINGS: dict(DEFAULT_MAPPINGS)}
+            entry, options={CONF_MAPPINGS: dict(DEFAULT_MAPPINGS_BY_STYLE[style])}
         )
 
     # Karte einmalig als statischen Pfad + globale Frontend-Ressource

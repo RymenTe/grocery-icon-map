@@ -7,7 +7,7 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.components.sensor import SensorEntity
 
-from .const import CONF_MAPPINGS, DOMAIN
+from .const import CONF_ICON_STYLE, CONF_MAPPINGS, DEFAULT_ICON_STYLE, DOMAIN
 
 
 async def async_setup_entry(
@@ -43,4 +43,7 @@ class GroceryIconMapSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        return {"mappings": self._entry.options.get(CONF_MAPPINGS, {})}
+        return {
+            "mappings": self._entry.options.get(CONF_MAPPINGS, {}),
+            "icon_style": self._entry.data.get(CONF_ICON_STYLE, DEFAULT_ICON_STYLE),
+        }

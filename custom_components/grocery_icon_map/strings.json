@@ -3,7 +3,10 @@
     "step": {
       "user": {
         "title": "Set up Grocery Icon Map",
-        "description": "Creates a central mapping of category labels to icons, read by the Grocery Icon Card."
+        "description": "Creates a central mapping of category labels to icons, read by the Grocery Icon Card.",
+        "data": {
+          "icon_style": "Icon style"
+        }
       }
     },
     "abort": {
@@ -16,14 +19,16 @@
         "title": "Manage icon mappings",
         "menu_options": {
           "add_mapping": "Add mapping",
-          "remove_mapping": "Remove mapping"
+          "remove_mapping": "Remove mapping",
+          "change_style": "Change icon style"
         }
       },
       "add_mapping": {
         "title": "New mapping",
         "data": {
           "label": "Label / category",
-          "icon": "Icon"
+          "icon": "Icon (mdi:... or emoji)",
+          "category": "Category"
         }
       },
       "remove_mapping": {
@@ -31,13 +36,21 @@
         "data": {
           "label": "Label to remove"
         }
+      },
+      "change_style": {
+        "title": "Change icon style",
+        "description": "Only affects new suggestions and the card's fallback icon. Existing mappings stay untouched.",
+        "data": {
+          "icon_style": "Icon style"
+        }
       }
     },
     "abort": {
       "no_mappings": "There are no mappings yet."
     },
     "error": {
-      "empty_label": "Please provide a label."
+      "empty_label": "Please provide a label.",
+      "empty_icon": "Please provide an icon."
     }
   }
 }
