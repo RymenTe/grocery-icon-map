@@ -62,3 +62,7 @@
 ## v1.4.2
 
 - Reine Versionsanhebung, keine Code-Änderung
+
+## v1.4.3
+
+- Enthält den gefixten Karten-Stand (siehe grocery-icon-card v1.4.2): Ansichts-Persistenz, korrektes Umbenennen/Entfernen im Bearbeiten-Dialog

@@ -263,10 +263,37 @@ class GroceryIconCard extends HTMLElement {
     this._config = config;
     this._activeIndex = 0;
     this._items = [];
-    // Standardansicht per Config einstellbar: "category" oder "flat" (Standard).
-    this._groupByCategory = config.default_view === "category";
     this._lastMappingsSnapshot = null;
+
+    // Ansicht (flach/Kategorie) je Karte im Browser merken, damit sie nicht
+    // bei jedem Neuladen (z.B. nach einem Update/Release) auf den
+    // Config-Standard zurückspringt. Schlüssel anhand der konfigurierten
+    // Listen, damit mehrere Karten mit unterschiedlichen Listen getrennte
+    // Einstellungen behalten.
+    this._viewStorageKey = "gic-view:" + config.lists.map((l) => l.entity).join(",");
+    const stored = this._readStoredView();
+    this._groupByCategory = stored !== null ? stored : config.default_view === "category";
+
     this._buildDom();
+  }
+
+  _readStoredView() {
+    try {
+      const raw = window.localStorage.getItem(this._viewStorageKey);
+      if (raw === null) return null;
+      return raw === "category";
+    } catch (e) {
+      return null; // z.B. localStorage blockiert - dann einfach Config-Default nutzen
+    }
+  }
+
+  _writeStoredView() {
+    try {
+      window.localStorage.setItem(this._viewStorageKey, this._groupByCategory ? "category" : "flat");
+    } catch (e) {
+      // localStorage nicht verfügbar - Ansicht bleibt dann nur für die
+      // aktuelle Sitzung gemerkt, kein harter Fehler.
+    }
   }
 
   set hass(hass) {
@@ -324,10 +351,11 @@ class GroceryIconCard extends HTMLElement {
 
     // Umschalter Flach / Nach Kategorie
     const viewToggle = document.createElement("button");
-    viewToggle.className = "gic-view-toggle";
-    viewToggle.textContent = "Nach Kategorie";
+    viewToggle.className = "gic-view-toggle" + (this._groupByCategory ? " active" : "");
+    viewToggle.textContent = this._groupByCategory ? "Liste (flach)" : "Nach Kategorie";
     viewToggle.addEventListener("click", () => {
       this._groupByCategory = !this._groupByCategory;
+      this._writeStoredView();
       viewToggle.classList.toggle("active", this._groupByCategory);
       viewToggle.textContent = this._groupByCategory ? "Liste (flach)" : "Nach Kategorie";
       this._renderItems();
@@ -488,6 +516,15 @@ class GroceryIconCard extends HTMLElement {
     const iconInput = this._dialogField(box, "Icon (mdi:... oder Emoji)", resolved.icon);
     const getCategory = this._categoryField(box, resolved.category);
 
+    // Für Rename-Erkennung: das ursprüngliche Label und ob es tatsächlich als
+    // eigene externe Zuordnung existierte (nicht nur über die eingebaute
+    // Stichwortliste oder den reinen Artikeltext als Fallback aufgelöst).
+    const originalLabel = resolved.label;
+    const hadExistingMapping = Object.prototype.hasOwnProperty.call(
+      this._externalMappings() || {},
+      originalLabel
+    );
+
     const actions = document.createElement("div");
     actions.className = "gic-dialog-actions";
 
@@ -495,8 +532,11 @@ class GroceryIconCard extends HTMLElement {
     deleteBtn.className = "gic-dialog-btn gic-dialog-delete";
     deleteBtn.textContent = "Entfernen";
     deleteBtn.addEventListener("click", async () => {
+      // Immer das ursprüngliche Label löschen, nicht den ggf. inzwischen
+      // editierten Feldinhalt - sonst würde bei getippten Änderungen ein nie
+      // existierendes Label "gelöscht" (No-op) statt der echten Zuordnung.
       await this._hass.callService("grocery_icon_map", "remove_mapping", {
-        label: labelInput.value.trim(),
+        label: originalLabel,
       });
       this._closeDialog(overlay);
     });
@@ -513,6 +553,14 @@ class GroceryIconCard extends HTMLElement {
       const label = labelInput.value.trim();
       const icon = iconInput.value.trim();
       if (!label || !icon) return;
+      // Label wurde umbenannt: alte Zuordnung zuerst entfernen, sonst bleibt
+      // sie parallel bestehen und kann die neue durch das Scoring weiterhin
+      // ausstechen ("Rename" hatte dadurch scheinbar keine Wirkung).
+      if (hadExistingMapping && label !== originalLabel) {
+        await this._hass.callService("grocery_icon_map", "remove_mapping", {
+          label: originalLabel,
+        });
+      }
       await this._hass.callService("grocery_icon_map", "set_mapping", {
         label,
         icon,
