@@ -385,6 +385,8 @@ class GroceryIconCard extends HTMLElement {
       .gic-dialog-field label { font-size:0.8em; color:var(--secondary-text-color); }
       .gic-dialog-field input { padding:8px 10px; border-radius:8px; border:1px solid var(--divider-color);
                                  background:var(--secondary-background-color); color:var(--primary-text-color); }
+      .gic-dialog-select { padding:8px 10px; border-radius:8px; border:1px solid var(--divider-color);
+                            background:var(--secondary-background-color); color:var(--primary-text-color); }
       .gic-dialog-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:8px; flex-wrap:wrap; }
       .gic-dialog-btn { border:none; border-radius:8px; padding:8px 14px; cursor:pointer; font-size:0.9em;
                          background:var(--secondary-background-color); color:var(--primary-text-color); }
@@ -484,7 +486,7 @@ class GroceryIconCard extends HTMLElement {
 
     const labelInput = this._dialogField(box, "Label", resolved.label);
     const iconInput = this._dialogField(box, "Icon (mdi:... oder Emoji)", resolved.icon);
-    const categoryInput = this._dialogField(box, "Kategorie", resolved.category);
+    const getCategory = this._categoryField(box, resolved.category);
 
     const actions = document.createElement("div");
     actions.className = "gic-dialog-actions";
@@ -514,7 +516,7 @@ class GroceryIconCard extends HTMLElement {
       await this._hass.callService("grocery_icon_map", "set_mapping", {
         label,
         icon,
-        category: categoryInput.value.trim() || "Sonstiges",
+        category: getCategory() || "Sonstiges",
       });
       this._closeDialog(overlay);
     });
@@ -528,6 +530,63 @@ class GroceryIconCard extends HTMLElement {
       if (e.target === overlay) this._closeDialog(overlay);
     });
     this.querySelector("ha-card").appendChild(overlay);
+  }
+
+  _existingCategories() {
+    const mappings = this._externalMappings() || {};
+    const cats = new Set([DEFAULT_CATEGORY]);
+    for (const value of Object.values(mappings)) {
+      if (value && typeof value === "object" && value.category) cats.add(value.category);
+    }
+    return [...cats].sort((a, b) => a.localeCompare(b, "de"));
+  }
+
+  /**
+   * Kategorie-Feld als Dropdown mit den über die Integration bereits
+   * bekannten Kategorien, plus "Neue Kategorie…" die bei Auswahl ein
+   * Freitextfeld einblendet. Gibt eine Getter-Funktion für den finalen Wert
+   * zurück (Dropdown-Auswahl oder eingetippter neuer Name).
+   */
+  _categoryField(container, currentValue) {
+    const NEW_VALUE = "__new__";
+    const categories = this._existingCategories();
+    const isKnown = categories.includes(currentValue);
+
+    const wrap = document.createElement("div");
+    wrap.className = "gic-dialog-field";
+    const lbl = document.createElement("label");
+    lbl.textContent = "Kategorie";
+    const select = document.createElement("select");
+    select.className = "gic-dialog-select";
+    categories.forEach((cat) => {
+      const opt = document.createElement("option");
+      opt.value = cat;
+      opt.textContent = cat;
+      select.appendChild(opt);
+    });
+    const newOpt = document.createElement("option");
+    newOpt.value = NEW_VALUE;
+    newOpt.textContent = "➕ Neue Kategorie…";
+    select.appendChild(newOpt);
+    select.value = isKnown ? currentValue : NEW_VALUE;
+
+    const newInput = document.createElement("input");
+    newInput.type = "text";
+    newInput.placeholder = "Name der neuen Kategorie";
+    newInput.value = isKnown ? "" : currentValue || "";
+    newInput.style.display = isKnown ? "none" : "block";
+    newInput.style.marginTop = "6px";
+
+    select.addEventListener("change", () => {
+      newInput.style.display = select.value === NEW_VALUE ? "block" : "none";
+    });
+
+    wrap.appendChild(lbl);
+    wrap.appendChild(select);
+    wrap.appendChild(newInput);
+    container.appendChild(wrap);
+
+    return () => (select.value === NEW_VALUE ? newInput.value.trim() : select.value);
   }
 
   _dialogField(container, labelText, value) {

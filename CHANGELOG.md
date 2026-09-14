@@ -54,3 +54,11 @@
 ## v1.4.0
 
 - Enthält den verbesserten Karten-Stand (siehe grocery-icon-card v1.4.0): spezifischeres Matching statt "erster Treffer gewinnt"
+
+## v1.4.1
+
+- Enthält den aktualisierten Karten-Stand (siehe grocery-icon-card v1.4.1): Kategorie-Dropdown im Bearbeiten-Dialog
+
+## v1.4.2
+
+- Reine Versionsanhebung, keine Code-Änderung
