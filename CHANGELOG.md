@@ -36,3 +36,9 @@
 ## v1.2.3 (nachträglich, hassfest-Validierung)
 
 - manifest.json: Schlüsselreihenfolge korrigiert (domain, name, dann alphabetisch) - hassfest verlangt das strikt
+
+## v1.3.0
+
+- Neu: Services `grocery_icon_map.set_mapping` und `grocery_icon_map.remove_mapping` - erlauben Zuordnungen programmatisch zu ändern (genutzt von der Karte, aber auch für eigene Automationen nutzbar)
+- Neu (Karte): langes Klicken/Halten (~500ms) auf einen Artikel öffnet ein Formular (Label/Icon/Kategorie), identisch zu "Zuordnung hinzufügen" - Speichern/Entfernen direkt aus dem Dashboard, ohne in die Integrations-Einstellungen zu wechseln. Setzt icon_sensor in der Karten-Config voraus.
+- Fix: Options-Änderungen lösten einen Reload aus, der Services beim nächsten Mal nicht neu registriert hätte - Registrierung ist jetzt laufzeit-stabil

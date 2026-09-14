@@ -174,10 +174,11 @@ function renderIcon(value) {
 }
 
 /**
- * Ermittelt Icon UND Kategorie für einen Artikelnamen.
- * Prüfreihenfolge: externe Zuordnung (Label -> Icon aus der Grocery-Icon-Map-
- * Integration, falls vorhanden) -> eingebaute Stichwortliste -> Standard.
- * @returns {{icon: string, category: string}}
+ * Ermittelt Icon, Kategorie UND das zugrundeliegende Label für einen
+ * Artikelnamen. Prüfreihenfolge: externe Zuordnung (Label -> {icon,
+ * category} aus der Grocery-Icon-Map-Integration, falls vorhanden) ->
+ * eingebaute Stichwortliste -> Standard.
+ * @returns {{icon: string, category: string, label: string}}
  */
 function resolveItem(name, externalMappings, style) {
   const n = (name || "").toLowerCase();
@@ -187,19 +188,23 @@ function resolveItem(name, externalMappings, style) {
       if (!label || !n.includes(label.toLowerCase())) continue;
       // Abwärtskompatibel: ältere Versionen speicherten nur einen reinen
       // Icon-String je Label statt {icon, category}.
-      if (typeof value === "string") return { icon: value, category: label };
-      return { icon: value.icon, category: value.category || label };
+      if (typeof value === "string") return { icon: value, category: label, label };
+      return { icon: value.icon, category: value.category || label, label };
     }
   }
 
   const rules = style === "mdi" ? ICON_RULES_MDI : ICON_RULES_EMOJI;
   for (const rule of rules) {
     if (rule.keys.some((k) => n.includes(k))) {
-      return { icon: rule.icon, category: DEFAULT_CATEGORY };
+      return { icon: rule.icon, category: DEFAULT_CATEGORY, label: rule.keys[0] };
     }
   }
 
-  return { icon: DEFAULT_ICON_BY_STYLE[style] || DEFAULT_ICON_BY_STYLE.emoji, category: DEFAULT_CATEGORY };
+  return {
+    icon: DEFAULT_ICON_BY_STYLE[style] || DEFAULT_ICON_BY_STYLE.emoji,
+    category: DEFAULT_CATEGORY,
+    label: name || "",
+  };
 }
 
 // -----------------------------------------------------------------------
@@ -291,6 +296,7 @@ class GroceryIconCard extends HTMLElement {
 
     const style = document.createElement("style");
     style.textContent = `
+      ha-card { position: relative; }
       .gic-tabs { display:flex; gap:8px; padding:0 16px 8px; flex-wrap:wrap; align-items:center; }
       .gic-tab, .gic-view-toggle { border:none; border-radius:16px; padding:6px 14px; background:var(--secondary-background-color);
                  color:var(--primary-text-color); cursor:pointer; font-size:0.9em; }
@@ -311,6 +317,20 @@ class GroceryIconCard extends HTMLElement {
       .gic-item .gic-emoji { font-size:28px; line-height:1; }
       .gic-item span:not(.gic-emoji) { font-size:0.78em; color:var(--primary-text-color); word-break:break-word; }
       .gic-empty { padding:16px; text-align:center; color:var(--secondary-text-color); }
+      .gic-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.5); display:flex;
+                     align-items:center; justify-content:center; z-index:10; border-radius:inherit; }
+      .gic-dialog { background:var(--card-background-color); border-radius:12px; padding:16px;
+                    width:min(320px, 90%); box-shadow:0 4px 16px rgba(0,0,0,0.3); }
+      .gic-dialog h3 { margin:0 0 12px; color:var(--primary-text-color); font-size:1.1em; }
+      .gic-dialog-field { display:flex; flex-direction:column; gap:4px; margin-bottom:10px; }
+      .gic-dialog-field label { font-size:0.8em; color:var(--secondary-text-color); }
+      .gic-dialog-field input { padding:8px 10px; border-radius:8px; border:1px solid var(--divider-color);
+                                 background:var(--secondary-background-color); color:var(--primary-text-color); }
+      .gic-dialog-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:8px; flex-wrap:wrap; }
+      .gic-dialog-btn { border:none; border-radius:8px; padding:8px 14px; cursor:pointer; font-size:0.9em;
+                         background:var(--secondary-background-color); color:var(--primary-text-color); }
+      .gic-dialog-save { background:var(--primary-color); color:var(--text-primary-color, #fff); }
+      .gic-dialog-delete { background:var(--error-color, #b71c1c); color:#fff; margin-right:auto; }
     `;
 
     card.appendChild(style);
@@ -354,8 +374,122 @@ class GroceryIconCard extends HTMLElement {
     const label = document.createElement("span");
     label.textContent = item.summary;
     tile.appendChild(label);
-    tile.addEventListener("click", () => this._toggleItem(item));
+
+    // Kurzer Tap = abhaken, langes Klicken/Halten (~500ms) = Icon-Zuordnung
+    // bearbeiten. Nur ein Listener-Paar (Pointer-Events), kein separates
+    // "click", um Doppelauslösung zu vermeiden.
+    let pressTimer = null;
+    let longPressFired = false;
+    tile.addEventListener("pointerdown", () => {
+      longPressFired = false;
+      pressTimer = setTimeout(() => {
+        longPressFired = true;
+        this._openEditDialog(resolved);
+      }, 500);
+    });
+    const cancelPress = () => {
+      if (pressTimer) clearTimeout(pressTimer);
+    };
+    tile.addEventListener("pointerup", () => {
+      cancelPress();
+      if (!longPressFired) this._toggleItem(item);
+    });
+    tile.addEventListener("pointerleave", cancelPress);
+    tile.addEventListener("pointercancel", cancelPress);
+
     return { tile, category: resolved.category };
+  }
+
+  /**
+   * Öffnet ein kleines Formular (Label/Icon/Kategorie), identisch zu "Zuordnung
+   * hinzufügen" der Integration, vorbefüllt mit dem aktuell greifenden Wert.
+   * Setzt icon_sensor voraus - ohne Integration gibt es nichts zu speichern.
+   */
+  _openEditDialog(resolved) {
+    if (!this._config.icon_sensor) {
+      alert(
+        "Bearbeiten braucht die Grocery-Icon-Map-Integration (icon_sensor in der Karten-Config)."
+      );
+      return;
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "gic-overlay";
+
+    const box = document.createElement("div");
+    box.className = "gic-dialog";
+
+    const title = document.createElement("h3");
+    title.textContent = "Zuordnung bearbeiten";
+    box.appendChild(title);
+
+    const labelInput = this._dialogField(box, "Label", resolved.label);
+    const iconInput = this._dialogField(box, "Icon (mdi:... oder Emoji)", resolved.icon);
+    const categoryInput = this._dialogField(box, "Kategorie", resolved.category);
+
+    const actions = document.createElement("div");
+    actions.className = "gic-dialog-actions";
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "gic-dialog-btn gic-dialog-delete";
+    deleteBtn.textContent = "Entfernen";
+    deleteBtn.addEventListener("click", async () => {
+      await this._hass.callService("grocery_icon_map", "remove_mapping", {
+        label: labelInput.value.trim(),
+      });
+      this._closeDialog(overlay);
+    });
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "gic-dialog-btn";
+    cancelBtn.textContent = "Abbrechen";
+    cancelBtn.addEventListener("click", () => this._closeDialog(overlay));
+
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "gic-dialog-btn gic-dialog-save";
+    saveBtn.textContent = "Speichern";
+    saveBtn.addEventListener("click", async () => {
+      const label = labelInput.value.trim();
+      const icon = iconInput.value.trim();
+      if (!label || !icon) return;
+      await this._hass.callService("grocery_icon_map", "set_mapping", {
+        label,
+        icon,
+        category: categoryInput.value.trim() || "Sonstiges",
+      });
+      this._closeDialog(overlay);
+    });
+
+    actions.appendChild(deleteBtn);
+    actions.appendChild(cancelBtn);
+    actions.appendChild(saveBtn);
+    box.appendChild(actions);
+    overlay.appendChild(box);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) this._closeDialog(overlay);
+    });
+    this.querySelector("ha-card").appendChild(overlay);
+  }
+
+  _dialogField(container, labelText, value) {
+    const wrap = document.createElement("div");
+    wrap.className = "gic-dialog-field";
+    const lbl = document.createElement("label");
+    lbl.textContent = labelText;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = value || "";
+    wrap.appendChild(lbl);
+    wrap.appendChild(input);
+    container.appendChild(wrap);
+    return input;
+  }
+
+  _closeDialog(overlay) {
+    overlay.remove();
+    // Kurze Verzögerung, damit der State (Sensor-Attribut) nach dem
+    // Service-Call sicher aktualisiert ist, bevor neu gerendert wird.
+    setTimeout(() => this._renderItems(), 300);
   }
 
   _renderItems() {

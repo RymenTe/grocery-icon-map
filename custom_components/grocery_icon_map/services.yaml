@@ -1,0 +1,36 @@
+set_mapping:
+  name: Zuordnung setzen
+  description: Legt eine Icon-Zuordnung an oder überschreibt eine bestehende mit gleichem Label.
+  fields:
+    label:
+      name: Label
+      description: Stichwort bzw. Kategorie-Label, das gegen Artikelnamen geprüft wird.
+      required: true
+      example: "Kartoffel"
+      selector:
+        text:
+    icon:
+      name: Icon
+      description: mdi:icon-name oder ein einzelnes Emoji.
+      required: true
+      example: "🥔"
+      selector:
+        text:
+    category:
+      name: Kategorie
+      description: Kategorie für die Gruppen-Ansicht der Karte. Leer = "Sonstiges".
+      required: false
+      example: "Gemüse"
+      selector:
+        text:
+
+remove_mapping:
+  name: Zuordnung entfernen
+  description: Entfernt eine bestehende Icon-Zuordnung anhand des Labels.
+  fields:
+    label:
+      name: Label
+      description: Exaktes Label der zu entfernenden Zuordnung.
+      required: true
+      selector:
+        text:
