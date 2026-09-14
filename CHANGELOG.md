@@ -42,3 +42,15 @@
 - Neu: Services `grocery_icon_map.set_mapping` und `grocery_icon_map.remove_mapping` - erlauben Zuordnungen programmatisch zu ändern (genutzt von der Karte, aber auch für eigene Automationen nutzbar)
 - Neu (Karte): langes Klicken/Halten (~500ms) auf einen Artikel öffnet ein Formular (Label/Icon/Kategorie), identisch zu "Zuordnung hinzufügen" - Speichern/Entfernen direkt aus dem Dashboard, ohne in die Integrations-Einstellungen zu wechseln. Setzt icon_sensor in der Karten-Config voraus.
 - Fix: Options-Änderungen lösten einen Reload aus, der Services beim nächsten Mal nicht neu registriert hätte - Registrierung ist jetzt laufzeit-stabil
+
+## v1.3.1
+
+- Enthält den gefixten Karten-Stand (siehe grocery-icon-card v1.3.2): Icon-Änderungen über das Bearbeiten-Formular werden jetzt zuverlässig übernommen
+
+## v1.3.2
+
+- Enthält den gefixten Karten-Stand (siehe grocery-icon-card v1.3.3): kein Absturz mehr bei versehentlicher Doppelinstallation
+
+## v1.4.0
+
+- Enthält den verbesserten Karten-Stand (siehe grocery-icon-card v1.4.0): spezifischeres Matching statt "erster Treffer gewinnt"

@@ -12,6 +12,7 @@
  * type: custom:grocery-icon-card
  * icon_sensor: sensor.grocery_icon_map_zuordnungen   # optional
  * icon_style: emoji   # "emoji" (Standard) oder "mdi" - nur Fallback, siehe unten
+ * default_view: flat   # "flat" (Standard) oder "category" - Startansicht beim Laden
  * lists:
  *   - entity: todo.einkaufsliste
  *     name: Bring
@@ -174,18 +175,59 @@ function renderIcon(value) {
 }
 
 /**
+ * Bewertet alle Kandidaten-Stichwörter gegen den (bereits kleingeschriebenen)
+ * Artikeltext und liefert den besten Treffer statt des ersten.
+ *
+ * Angelehnt an das Scoring-Prinzip aus rynecoop/ha-grocery-learning
+ * (item_logic.category_for_term): mehrteilige/längere Stichwörter sind
+ * spezifischer und gewinnen, ein zusätzlicher Bonus für einen Treffer am
+ * ENDE des Artikeltextes bricht Gleichstände zugunsten des Grundworts -
+ * im Deutschen sitzt das Grundwort bei Komposita meist am Wortende
+ * ("Kirschtomate" -> "Tomate" statt "Kirsch", "Pilzsuppe" -> "Suppe"
+ * statt "Pilz"), anders als im englischen Original (dort: letztes Token
+ * der Phrase). Bei Punktgleichstand gewinnt der zuerst übergebene Eintrag.
+ *
+ * @param {string} n Bereits kleingeschriebener Artikeltext
+ * @param {Iterable<any>} entries Kandidaten (z.B. Object.entries(mappings) oder ICON_RULES)
+ * @param {(entry: any) => string[]} getKeys Liefert die zu prüfenden Stichwörter für einen Kandidaten
+ * @returns {{entry: any, key: string}|null}
+ */
+function bestKeyMatch(n, entries, getKeys) {
+  let best = null;
+  let bestKey = "";
+  let bestScore = -1;
+  for (const entry of entries) {
+    for (const rawKey of getKeys(entry)) {
+      const key = (rawKey || "").toLowerCase();
+      if (!key || !n.includes(key)) continue;
+      let score = key.length * 2;
+      if (n.endsWith(key)) score += 5; // Grundwort-Bonus (siehe oben)
+      if (score > bestScore) {
+        bestScore = score;
+        best = entry;
+        bestKey = key;
+      }
+    }
+  }
+  return best ? { entry: best, key: bestKey } : null;
+}
+
+/**
  * Ermittelt Icon, Kategorie UND das zugrundeliegende Label für einen
  * Artikelnamen. Prüfreihenfolge: externe Zuordnung (Label -> {icon,
  * category} aus der Grocery-Icon-Map-Integration, falls vorhanden) ->
- * eingebaute Stichwortliste -> Standard.
+ * eingebaute Stichwortliste -> Standard. Bei mehreren passenden Stichwörtern
+ * gewinnt jeweils das spezifischste (siehe bestKeyMatch), nicht einfach das
+ * zuerst gefundene.
  * @returns {{icon: string, category: string, label: string}}
  */
 function resolveItem(name, externalMappings, style) {
   const n = (name || "").toLowerCase();
 
   if (externalMappings) {
-    for (const [label, value] of Object.entries(externalMappings)) {
-      if (!label || !n.includes(label.toLowerCase())) continue;
+    const match = bestKeyMatch(n, Object.entries(externalMappings), ([label]) => [label]);
+    if (match) {
+      const [label, value] = match.entry;
       // Abwärtskompatibel: ältere Versionen speicherten nur einen reinen
       // Icon-String je Label statt {icon, category}.
       if (typeof value === "string") return { icon: value, category: label, label };
@@ -194,10 +236,9 @@ function resolveItem(name, externalMappings, style) {
   }
 
   const rules = style === "mdi" ? ICON_RULES_MDI : ICON_RULES_EMOJI;
-  for (const rule of rules) {
-    if (rule.keys.some((k) => n.includes(k))) {
-      return { icon: rule.icon, category: DEFAULT_CATEGORY, label: rule.keys[0] };
-    }
+  const ruleMatch = bestKeyMatch(n, rules, (rule) => rule.keys);
+  if (ruleMatch) {
+    return { icon: ruleMatch.entry.icon, category: DEFAULT_CATEGORY, label: ruleMatch.key };
   }
 
   return {
@@ -222,13 +263,31 @@ class GroceryIconCard extends HTMLElement {
     this._config = config;
     this._activeIndex = 0;
     this._items = [];
-    this._groupByCategory = false;
+    // Standardansicht per Config einstellbar: "category" oder "flat" (Standard).
+    this._groupByCategory = config.default_view === "category";
+    this._lastMappingsSnapshot = null;
     this._buildDom();
   }
 
   set hass(hass) {
     const first = !this._hass;
     this._hass = hass;
+
+    // Reagiert automatisch auf Änderungen am icon_sensor - egal ob durch
+    // eigenen Service-Call (langes Klicken), die Options-Flow-UI der
+    // Integration, oder irgendeine andere Quelle. Ohne das bliebe die Karte
+    // nach einer Bearbeitung auf altem Stand, bis irgendeine andere Aktion
+    // ein Neu-Rendern auslöst.
+    const entityId = this._config && this._config.icon_sensor;
+    if (entityId) {
+      const state = hass.states[entityId];
+      const snapshot = state ? JSON.stringify(state.attributes) : null;
+      if (!first && snapshot !== this._lastMappingsSnapshot && this._items.length) {
+        this._renderItems();
+      }
+      this._lastMappingsSnapshot = snapshot;
+    }
+
     if (first) this._fetchItems();
   }
 
@@ -487,9 +546,9 @@ class GroceryIconCard extends HTMLElement {
 
   _closeDialog(overlay) {
     overlay.remove();
-    // Kurze Verzögerung, damit der State (Sensor-Attribut) nach dem
-    // Service-Call sicher aktualisiert ist, bevor neu gerendert wird.
-    setTimeout(() => this._renderItems(), 300);
+    // Kein manuelles Timeout mehr nötig - der hass-Setter erkennt die
+    // geänderten Sensor-Attribute automatisch, sobald sie ankommen, und
+    // rendert dann neu (siehe set hass() oben).
   }
 
   _renderItems() {
@@ -559,11 +618,13 @@ class GroceryIconCard extends HTMLElement {
   }
 }
 
-customElements.define("grocery-icon-card", GroceryIconCard);
+if (!customElements.get("grocery-icon-card")) {
+  customElements.define("grocery-icon-card", GroceryIconCard);
 
-window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "grocery-icon-card",
-  name: "Grocery Icon Card",
-  description: "Einkaufsliste(n) mit automatischer Emoji/MDI-Zuordnung, Kategorie-Ansicht, umschaltbar, bedienbar",
-});
+  window.customCards = window.customCards || [];
+  window.customCards.push({
+    type: "grocery-icon-card",
+    name: "Grocery Icon Card",
+    description: "Einkaufsliste(n) mit automatischer Emoji/MDI-Zuordnung, Kategorie-Ansicht, umschaltbar, bedienbar",
+  });
+}
