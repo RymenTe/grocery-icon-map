@@ -32,3 +32,7 @@
 ## v1.2.2 (nachträglich, hassfest-Validierung)
 
 - manifest.json: `dependencies: ["http", "frontend"]` ergänzt - `hass.http` und `frontend.add_extra_js_url` werden im Code verwendet, hassfest verlangt das explizit im Manifest
+
+## v1.2.3 (nachträglich, hassfest-Validierung)
+
+- manifest.json: Schlüsselreihenfolge korrigiert (domain, name, dann alphabetisch) - hassfest verlangt das strikt
