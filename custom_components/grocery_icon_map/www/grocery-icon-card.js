@@ -368,15 +368,44 @@ class GroceryIconCard extends HTMLElement {
     input.type = "text";
     input.placeholder = "Artikel hinzufügen …";
     input.className = "gic-input";
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") this._addItem(input);
+
+    // Notiz-Feld (z.B. "Type 550" bei Mehl) ist standardmäßig ausgeblendet,
+    // per Schalter dazuschaltbar - deckt den Normalfall (nur Artikelname)
+    // ab, ohne die Zeile immer mit zwei Feldern zu überladen.
+    const noteToggle = document.createElement("button");
+    noteToggle.className = "gic-note-toggle";
+    noteToggle.title = "Notiz hinzufügen";
+    noteToggle.textContent = "📝";
+    const noteInput = document.createElement("input");
+    noteInput.type = "text";
+    noteInput.placeholder = "Notiz (optional) …";
+    noteInput.className = "gic-input gic-note-input";
+    noteInput.style.display = "none";
+    noteToggle.addEventListener("click", () => {
+      const showing = noteInput.style.display !== "none";
+      noteInput.style.display = showing ? "none" : "block";
+      noteToggle.classList.toggle("active", !showing);
+      if (!showing) noteInput.focus();
     });
+
+    const addKeyHandler = (e) => {
+      if (e.key === "Enter") this._addItem(input, noteInput, noteToggle);
+    };
+    input.addEventListener("keydown", addKeyHandler);
+    noteInput.addEventListener("keydown", addKeyHandler);
+
     const addBtn = document.createElement("button");
     addBtn.className = "gic-add-btn";
     addBtn.textContent = "+";
-    addBtn.addEventListener("click", () => this._addItem(input));
-    addRow.appendChild(input);
-    addRow.appendChild(addBtn);
+    addBtn.addEventListener("click", () => this._addItem(input, noteInput, noteToggle));
+
+    const addMainRow = document.createElement("div");
+    addMainRow.className = "gic-add-main-row";
+    addMainRow.appendChild(input);
+    addMainRow.appendChild(noteToggle);
+    addMainRow.appendChild(addBtn);
+    addRow.appendChild(addMainRow);
+    addRow.appendChild(noteInput);
 
     const container = document.createElement("div");
     container.className = "gic-container";
@@ -389,11 +418,16 @@ class GroceryIconCard extends HTMLElement {
                  color:var(--primary-text-color); cursor:pointer; font-size:0.9em; }
       .gic-tab.active, .gic-view-toggle.active { background:var(--primary-color); color:var(--text-primary-color, #fff); }
       .gic-view-toggle { margin-left:auto; }
-      .gic-add-row { display:flex; gap:8px; padding:0 16px 12px; }
+      .gic-add-row { display:flex; flex-direction:column; gap:6px; padding:0 16px 12px; }
+      .gic-add-main-row { display:flex; gap:8px; }
       .gic-input { flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--divider-color);
                    background:var(--card-background-color); color:var(--primary-text-color); }
+      .gic-note-input { font-size:0.9em; }
+      .gic-note-toggle { border:none; border-radius:8px; padding:0 10px; background:var(--secondary-background-color);
+                          font-size:1.1em; cursor:pointer; flex-shrink:0; }
+      .gic-note-toggle.active { background:var(--primary-color); }
       .gic-add-btn { border:none; border-radius:8px; padding:0 16px; background:var(--primary-color);
-                     color:var(--text-primary-color, #fff); font-size:1.2em; cursor:pointer; }
+                     color:var(--text-primary-color, #fff); font-size:1.2em; cursor:pointer; flex-shrink:0; }
       .gic-category { padding:0 16px; margin-bottom:8px; }
       .gic-category h3 { font-size:0.85em; color:var(--secondary-text-color); margin:0 0 8px; text-transform:uppercase; letter-spacing:0.04em; }
       .gic-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(84px,1fr)); gap:10px; padding:0 16px 16px; }
@@ -403,6 +437,7 @@ class GroceryIconCard extends HTMLElement {
       .gic-item ha-icon { --mdc-icon-size:28px; color:var(--primary-color); }
       .gic-item .gic-emoji { font-size:28px; line-height:1; }
       .gic-item span:not(.gic-emoji) { font-size:0.78em; color:var(--primary-text-color); word-break:break-word; }
+      .gic-item .gic-note { font-size:0.68em; color:var(--secondary-text-color); font-style:italic; }
       .gic-empty { padding:16px; text-align:center; color:var(--secondary-text-color); }
       .gic-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.5); display:flex;
                      align-items:center; justify-content:center; z-index:10; border-radius:inherit; }
@@ -463,6 +498,12 @@ class GroceryIconCard extends HTMLElement {
     const label = document.createElement("span");
     label.textContent = item.summary;
     tile.appendChild(label);
+    if (item.description) {
+      const note = document.createElement("span");
+      note.className = "gic-note";
+      note.textContent = item.description;
+      tile.appendChild(note);
+    }
 
     // Kurzer Tap = abhaken, langes Klicken/Halten (~500ms) = Icon-Zuordnung
     // bearbeiten. Nur ein Listener-Paar (Pointer-Events), kein separates
@@ -712,15 +753,20 @@ class GroceryIconCard extends HTMLElement {
     this._fetchItems();
   }
 
-  async _addItem(input) {
+  async _addItem(input, noteInput, noteToggle) {
     const value = input.value.trim();
     if (!value) return;
+    const note = noteInput ? noteInput.value.trim() : "";
     const entity = this._config.lists[this._activeIndex].entity;
-    await this._hass.callService("todo", "add_item", {
-      entity_id: entity,
-      item: value,
-    });
+    const data = { entity_id: entity, item: value };
+    if (note) data.description = note;
+    await this._hass.callService("todo", "add_item", data);
     input.value = "";
+    if (noteInput) {
+      noteInput.value = "";
+      noteInput.style.display = "none";
+    }
+    if (noteToggle) noteToggle.classList.remove("active");
     this._fetchItems();
   }
 }

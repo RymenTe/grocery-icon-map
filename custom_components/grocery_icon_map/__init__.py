@@ -8,6 +8,7 @@ Zuordnungen anlegen/ändern/entfernen kann, ohne die Options-Flow-UI zu öffnen.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import voluptuous as vol
@@ -32,7 +33,23 @@ from .const import (
 
 PLATFORMS = ["sensor"]
 
-CARD_URL = f"/{DOMAIN}_files/grocery-icon-card.js"
+CARD_FILE = Path(__file__).parent / "www" / "grocery-icon-card.js"
+_MANIFEST = json.loads((Path(__file__).parent / "manifest.json").read_text())
+_CARD_VERSION = _MANIFEST.get("version", "0")
+
+# Versions-Query-Parameter als Cache-Busting: jede neue Version bekommt
+# dadurch automatisch eine neue URL, die Browser/App-WebView/Service-Worker
+# zwingend neu laden - ohne das müssten Nutzer nach jedem Update manuell den
+# Cache leeren (kam z.B. beim Zugriff via Nabu Casa Remote/Companion-App-
+# WebView vor, weil das dort einen eigenen, hartnäckigeren Cache hat als der
+# normale Browser). "cache_headers=False" bei der Registrierung allein
+# reicht nicht aus, da es nur bedeutet "keine speziellen Header setzen",
+# nicht "aktiv nicht cachen".
+# Wichtig: die REGISTRIERTE Route braucht den reinen Pfad ohne Query-String
+# (aiohttp würde sonst nach einem Pfad suchen, der das "?..." wörtlich
+# enthält) - nur die im <script>-Tag verwendete URL bekommt den Parameter.
+CARD_PATH = f"/{DOMAIN}_files/grocery-icon-card.js"
+CARD_URL = f"{CARD_PATH}?v={_CARD_VERSION}"
 CARD_FILE = Path(__file__).parent / "www" / "grocery-icon-card.js"
 
 SERVICE_SET_MAPPING = "set_mapping"
@@ -71,7 +88,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # durch die Entry-Verwaltung weiter unten immer existiert.
     if not hass.data.get(f"{DOMAIN}_globals_registered"):
         await hass.http.async_register_static_paths(
-            [StaticPathConfig(CARD_URL, str(CARD_FILE), cache_headers=False)]
+            [StaticPathConfig(CARD_PATH, str(CARD_FILE), cache_headers=False)]
         )
         add_extra_js_url(hass, CARD_URL)
         _register_services(hass)

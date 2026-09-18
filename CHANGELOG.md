@@ -66,3 +66,11 @@
 ## v1.4.3
 
 - Enthält den gefixten Karten-Stand (siehe grocery-icon-card v1.4.2): Ansichts-Persistenz, korrektes Umbenennen/Entfernen im Bearbeiten-Dialog
+
+## v1.5.0
+
+- Enthält den erweiterten Karten-Stand (siehe grocery-icon-card v1.5.0): Notiz-Anzeige und optionales Notiz-Feld beim Hinzufügen
+
+## v1.5.1
+
+- Fix: Karte blieb nach Updates teils veraltet, besonders spürbar über Nabu-Casa-Remote-Zugriff / Companion-App-WebView (eigener, hartnäckigerer Cache als der normale Browser). Die Karten-URL enthält jetzt automatisch die Versionsnummer als Cache-Busting-Parameter - jedes Release erzwingt dadurch selbstständig ein Neuladen, ohne dass Nutzer manuell den App-Cache leeren müssen.
