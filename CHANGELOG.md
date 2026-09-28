@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.5.2
+
+- Fix: v1.5.1 löste das Cache-Problem nur teilweise - die Versionsnummer steckte lediglich im Query-String (`?v=...`), der registrierte Pfad selbst blieb über alle Releases identisch. Ein Proxy/CDN, der beim Cachen die Query-String ignoriert (beobachtet über HA Cloud / Nabu-Casa-Remote-Zugriff), konnte dadurch weiterhin eine unter diesem Pfad zwischengespeicherte alte Karten-Version ausliefern - auch bei frisch eingerichteten Instanzen ohne eigenes Zutun. Die Versionsnummer steckt jetzt direkt im Dateipfad selbst (`grocery-icon-card-<version>.js`), wodurch jedes Release eine vollständig neue, eindeutige URL bekommt.
+
 ## v1.2.0
 
 - Alle ~55 bisher fest im Karten-Code hinterlegten Einzel-Artikel-Icons (Apfel, Milch, Brot, ...) sind jetzt Teil der GUI-verwalteten Zuordnungen - über "Zuordnung hinzufügen" bearbeitbar, erweiterbar, entfernbar

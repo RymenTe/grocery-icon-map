@@ -37,19 +37,24 @@ CARD_FILE = Path(__file__).parent / "www" / "grocery-icon-card.js"
 _MANIFEST = json.loads((Path(__file__).parent / "manifest.json").read_text())
 _CARD_VERSION = _MANIFEST.get("version", "0")
 
-# Versions-Query-Parameter als Cache-Busting: jede neue Version bekommt
-# dadurch automatisch eine neue URL, die Browser/App-WebView/Service-Worker
-# zwingend neu laden - ohne das müssten Nutzer nach jedem Update manuell den
-# Cache leeren (kam z.B. beim Zugriff via Nabu Casa Remote/Companion-App-
-# WebView vor, weil das dort einen eigenen, hartnäckigeren Cache hat als der
-# normale Browser). "cache_headers=False" bei der Registrierung allein
-# reicht nicht aus, da es nur bedeutet "keine speziellen Header setzen",
-# nicht "aktiv nicht cachen".
-# Wichtig: die REGISTRIERTE Route braucht den reinen Pfad ohne Query-String
-# (aiohttp würde sonst nach einem Pfad suchen, der das "?..." wörtlich
-# enthält) - nur die im <script>-Tag verwendete URL bekommt den Parameter.
-CARD_PATH = f"/{DOMAIN}_files/grocery-icon-card.js"
-CARD_URL = f"{CARD_PATH}?v={_CARD_VERSION}"
+# Cache-Busting über die VERSION IM PFAD selbst, nicht nur als Query-Parameter
+# (v1.5.1 machte nur Letzteres - reichte aber nicht: der registrierte Pfad
+# blieb über alle Versionen hinweg identisch, nur der "?v=..."-Teil änderte
+# sich. Ein Proxy/CDN, der beim Cachen die Query-String ignoriert (das kam
+# konkret beim Zugriff via Nabu-Casa-Remote/HA-Cloud sowie in der Companion-
+# App-WebView vor, siehe CHANGELOG), liefert dann trotz neuer Versionsnummer
+# weiter die alte, unter genau diesem Pfad zwischengespeicherte Datei aus -
+# auch bei einer frisch eingerichteten Instanz, wenn unter dem Pfad vorher
+# schon einmal etwas (z. B. aus einem früheren Testlauf) gecacht wurde.
+# Mit der Version im Pfad selbst wird die URL bei jedem Release komplett neu
+# und ist damit unabhängig vom Cache-Verhalten irgendeines Proxys eindeutig -
+# das ist der Standardansatz für Cache-Busting bei fingerprinted Assets.
+# "cache_headers=False" bei der Registrierung allein reicht dafür NICHT aus,
+# da es nur bedeutet "keine speziellen Header setzen", nicht "aktiv nicht
+# cachen" - ein Proxy ohne eigene Cache-Control-Vorgabe kann trotzdem nach
+# eigenem Ermessen (heuristisch) cachen.
+CARD_PATH = f"/{DOMAIN}_files/grocery-icon-card-{_CARD_VERSION}.js"
+CARD_URL = CARD_PATH
 CARD_FILE = Path(__file__).parent / "www" / "grocery-icon-card.js"
 
 SERVICE_SET_MAPPING = "set_mapping"
