@@ -1,0 +1,71 @@
+name: Release
+
+# Erstellt automatisch Tag + GitHub-Release, sobald auf main eine neue
+# Version in manifest.json steht. HACS erkennt Updates nur über Releases/Tags,
+# ein Push auf main allein reicht nicht. Existiert der Tag bereits, passiert
+# nichts - der Workflow ist also bei jedem Lauf gefahrlos wiederholbar.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - custom_components/grocery_icon_map/manifest.json
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Version aus manifest.json lesen
+        id: version
+        run: |
+          version=$(jq -r '.version' custom_components/grocery_icon_map/manifest.json)
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            echo "Keine Version in manifest.json gefunden" >&2
+            exit 1
+          fi
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Prüfen, ob der Tag schon existiert
+        id: check
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${{ steps.version.outputs.tag }}" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Tag ${{ steps.version.outputs.tag }} existiert bereits - kein neuer Release."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Release-Notes aus CHANGELOG.md ziehen
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          awk -v v="${{ steps.version.outputs.version }}" '
+            $0 ~ "^## v" v "([[:space:]]|$)" { found=1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "Siehe CHANGELOG.md" > release_notes.md
+          fi
+          cat release_notes.md
+
+      - name: Tag und Release erstellen
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --target "${{ github.sha }}" \
+            --title "${{ steps.version.outputs.tag }}" \
+            --notes-file release_notes.md
